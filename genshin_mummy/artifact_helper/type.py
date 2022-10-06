@@ -28,7 +28,7 @@ class EntryType(Enum):
     CRIT_RATE = '暴击率'
 
     ELEMENTAL_MASTERY = '元素精通'
-    ENERGY_RECHARGE = '元素充能'
+    ENERGY_RECHARGE = '元素充能效率'
 
     PYRO_DMG_BONUS = '火元素伤害加成'
     HYDRO_DMG_BONUS = '水元素伤害加成'
@@ -58,6 +58,19 @@ class Artifact:
     stars: int = attrs.field()
     level: int = attrs.field()
     subentries: Dict[EntryType, str] = attrs.field()
+
+    def to_dict(self):
+        main_entry_key, main_entry_value = list(self.entry.items())[0]
+        result = {
+            '圣遗物名称': self.name,
+            '类型': self.type.value,
+            '主词条': f'{main_entry_key.value}={main_entry_value}',
+            '星级': self.stars,
+            '等级': self.level,
+        }
+        for idx, (subentry_key, subentry_value) in enumerate(self.subentries.items(), start=1):
+            result[f'副词条{idx}'] = f'{subentry_key.value}={subentry_value}'
+        return result
 
 
 @attrs.define
@@ -106,12 +119,12 @@ class ArtifactPage:
             left=self.screen_width * self.rough_desc_loc_ratio[0],
             top=self.screen_height * self.rough_desc_loc_ratio[1],
             width=self.screen_width * self.rough_desc_loc_ratio[2],
-            height=self.screen_height * self.rough_desc_loc_ratio[3])
+            height=self.screen_height * self.rough_desc_loc_ratio[3],)
         self.rough_list_loc = Box(
             left=self.screen_width * self.rough_list_loc_ratio[0],
             top=self.screen_height * self.rough_list_loc_ratio[1],
             width=self.screen_width * self.rough_list_loc_ratio[2],
-            height=self.screen_height * self.rough_list_loc_ratio[3])
+            height=self.screen_height * self.rough_list_loc_ratio[3],)
         self.locate_artifact_list()
         self.locate_artifact_description()
         # TODO: 双向校验圣遗物列表区域和描述区域的坐标位置准确性
@@ -200,7 +213,7 @@ class ArtifactPage:
     def scroll_artifact_list(
         self,
         direction: Direction,
-        times: int = 5,
+        times: int = 4,
         until_boundary: bool = False,
         only_scrolling: bool = True,
     ):
@@ -244,10 +257,10 @@ class ArtifactPage:
 
             if excced_max_num:
                 break
-
+            
             loc = self.locate_selected_artifact()
 
-            if loc.center_y + self.y_offset < self.list_loc.bottom:
+            if loc.bottom + self.y_offset < self.list_loc.bottom:
                 row_head_loc = self.locate_aim_artifact_based_on_point(
                     aim_x=self.col_points[0],
                     aim_y=loc.center_y + self.y_offset,

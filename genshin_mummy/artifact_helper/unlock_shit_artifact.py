@@ -3,6 +3,7 @@ from typing import Optional
 import cv2
 import numpy as np
 import pyautogui
+import iolite
 from genshin_mummy.artifact_helper.type import (
     Artifact,
     ArtifactPage,
@@ -45,6 +46,7 @@ def get_entry_type(entry_key: str, entry_value: str):
             if entry_key == cand_entry_type.value:
                 entry_type = cand_entry_type
                 break
+        # TODO: 近似匹配
     return entry_type
 
 
@@ -119,11 +121,18 @@ def recognize_artifact_informations(ocr, screen: np.ndarray):
         subentry_key, subentry_value = text.split(PLUS_CHAR)
         subentry_type = get_entry_type(subentry_key, subentry_value)
         subentries[subentry_type] = subentry_value
-
+    
+    artifact_type = None
+    for _item in ArtifactType:
+        if _item.value == type_chunk.text:
+            artifact_type = _item
+            break
+    assert artifact_type
+    
     artifact = Artifact(
         name=name_chunk.text,
-        type=type_chunk.text,
-        entry={entry_chunk.text: entry_value_chunk.text},
+        type=artifact_type,
+        entry={entry_type: entry_value_chunk.text},
         stars=stars_chunk.text.count(STAR_CHAR),
         level=int(level_chunk.text.lstrip(PLUS_CHAR)),
         subentries=subentries,
@@ -149,7 +158,7 @@ def whether_or_not_to_lock(artifact):
     # 沙、杯、帽主词条为类别独有词条=>锁
     if (artifact.type not in {
             ArtifactType.FLOWER_OF_LIFE, ArtifactType.PLUME_OF_DEATH
-    } and artifact.entry not in {EntryType.HP, EntryType.ATK, EntryType.DEF}):
+    } and list(artifact.entry.keys())[0] not in {EntryType.HP_PERCENTAGE, EntryType.ATK_PERCENTAGE, EntryType.DEF_PERCENTAGE}):
         return True
 
     # 双暴词条=>锁
@@ -164,7 +173,7 @@ def whether_or_not_to_lock(artifact):
         return True
 
     # 小攻击、小防御、小生命大于等于两个=>不锁
-    if len({EntryType.HP, EntryType.ATK, EntryType.DEF} - subentry_types) >= 2:
+    if len({EntryType.HP, EntryType.ATK, EntryType.DEF} & subentry_types) >= 2:
         return False
 
     return True
@@ -211,16 +220,19 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
     if debug_root:
         from pathlib import Path
         debug_root = Path(debug_root)
+        debug_info = []
     ocr = PaddleOCR(use_angle_cls=False, lang="ch")
     artifact_page = ArtifactPage()
+
     for idx, _ in enumerate(artifact_page.iter_artifacts(max_num)):
         screen = pyautogui.screenshot()
         screen = np.asarray(screen)
         screen = cv2.bitwise_and(screen,
                                  screen,
                                  mask=artifact_page.desc_loc_mask)
-        PILImage.fromarray(screen).save(debug_root / f'{idx}_ocr.png')
+        # PILImage.fromarray(screen).save(debug_root / f'{idx}_ocr.png')
         artifact, level_chunk = recognize_artifact_informations(ocr, screen)
+
         expect_status = whether_or_not_to_lock(artifact)
         lock_status, icon_center = locate_lock_icon(
             top_limit=int(level_chunk.top),
@@ -230,16 +242,40 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
             screen=screen,
             desc_loc_mask=artifact_page.desc_loc_mask.copy(),
         )
+        if debug_root:
+            info = list(artifact.to_dict().values())
+            padding_col =  9 - len(info)
+            for _ in range(padding_col):
+                info.append('')
+            info.append(lock_status)
+            debug_info.append(info)
         if lock_status != expect_status:
             pyautogui.leftClick(
                 icon_center.x,
                 icon_center.y,
                 duration=artifact_page.mouse_move_time,
             )
+
         artifact_page.move_to_artifact_list()
 
+    if debug_root and debug_info:
+        headers = list(artifact.to_dict().keys())[:5]
+        headers += [
+            '副词条1',
+            '副词条2',
+            '副词条3',
+            '副词条4',
+            '当前是否锁',
+        ]
+        debug_info.insert(0,headers)
+        iolite.write_csv_lines(
+            debug_root / f'artifacts.csv',
+            debug_info,
+            encoding='utf-8',
+            newline='',
+        )
 
 if __name__ == '__main__':
     import time
     time.sleep(10)
-    run_pipeline(60, './debug_folder')
+    run_pipeline(1600, './debug_folder')
