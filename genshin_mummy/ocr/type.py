@@ -5,6 +5,7 @@ from enum import Enum, unique
 from typing import DefaultDict, List, Optional, Sequence
 
 import attrs
+
 from genshin_mummy.type import Box, Direction
 
 
@@ -91,6 +92,9 @@ class TextChunkCollection:
 
 def build_text_chunks_from_paddle_ocr(ocr_items):
     text_chunks = []
+    # NOTE: 结构变了，暂时不太明白为什么多了一级，暂时先简单处理下
+    # TODO：定义下结构，对PADDLE结果结构校验下
+    ocr_items = ocr_items[0]
     for box_item, text_item in ocr_items:
         left = (box_item[0][0] + box_item[3][0]) // 2
         top = (box_item[0][1] + box_item[1][1]) // 2

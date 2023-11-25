@@ -6,6 +6,7 @@ import attrs
 import cv2
 import numpy as np
 import pyautogui
+
 from genshin_mummy.ocr.type import TextChunkCollection
 from genshin_mummy.opt import (
     diff_two_images,
@@ -68,7 +69,9 @@ class Artifact:
             '星级': self.stars,
             '等级': self.level,
         }
-        for idx, (subentry_key, subentry_value) in enumerate(self.subentries.items(), start=1):
+        for idx, (subentry_key,
+                  subentry_value) in enumerate(self.subentries.items(),
+                                               start=1):
             result[f'副词条{idx}'] = f'{subentry_key.value}={subentry_value}'
         return result
 
@@ -119,12 +122,14 @@ class ArtifactPage:
             left=self.screen_width * self.rough_desc_loc_ratio[0],
             top=self.screen_height * self.rough_desc_loc_ratio[1],
             width=self.screen_width * self.rough_desc_loc_ratio[2],
-            height=self.screen_height * self.rough_desc_loc_ratio[3],)
+            height=self.screen_height * self.rough_desc_loc_ratio[3],
+        )
         self.rough_list_loc = Box(
             left=self.screen_width * self.rough_list_loc_ratio[0],
             top=self.screen_height * self.rough_list_loc_ratio[1],
             width=self.screen_width * self.rough_list_loc_ratio[2],
-            height=self.screen_height * self.rough_list_loc_ratio[3],)
+            height=self.screen_height * self.rough_list_loc_ratio[3],
+        )
         self.locate_artifact_list()
         self.locate_artifact_description()
         # TODO: 双向校验圣遗物列表区域和描述区域的坐标位置准确性
@@ -257,7 +262,7 @@ class ArtifactPage:
 
             if excced_max_num:
                 break
-            
+
             loc = self.locate_selected_artifact()
 
             if loc.bottom + self.y_offset < self.list_loc.bottom:

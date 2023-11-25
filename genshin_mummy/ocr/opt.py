@@ -1,6 +1,7 @@
 from typing import Optional, Sequence
 
 import numpy as np
+
 from genshin_mummy.ocr.type import Alignment, TextChunk
 
 

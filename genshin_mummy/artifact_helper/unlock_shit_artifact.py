@@ -4,6 +4,10 @@ import cv2
 import numpy as np
 import pyautogui
 import iolite
+from paddleocr import PaddleOCR
+from PIL import Image as PILImage
+
+
 from genshin_mummy.artifact_helper.type import (
     Artifact,
     ArtifactPage,
@@ -19,8 +23,6 @@ from genshin_mummy.ocr.type import (
 )
 
 from genshin_mummy.type import Box, Direction, Point
-from paddleocr import PaddleOCR
-from PIL import Image as PILImage
 
 # TODO: 视PADDLE OCR结果可能要归一化
 SPACE_CHAR = ' '
@@ -121,14 +123,14 @@ def recognize_artifact_informations(ocr, screen: np.ndarray):
         subentry_key, subentry_value = text.split(PLUS_CHAR)
         subentry_type = get_entry_type(subentry_key, subentry_value)
         subentries[subentry_type] = subentry_value
-    
+
     artifact_type = None
     for _item in ArtifactType:
         if _item.value == type_chunk.text:
             artifact_type = _item
             break
     assert artifact_type
-    
+
     artifact = Artifact(
         name=name_chunk.text,
         type=artifact_type,
@@ -156,9 +158,12 @@ def whether_or_not_to_lock(artifact):
         return False
 
     # 沙、杯、帽主词条为类别独有词条=>锁
-    if (artifact.type not in {
-            ArtifactType.FLOWER_OF_LIFE, ArtifactType.PLUME_OF_DEATH
-    } and list(artifact.entry.keys())[0] not in {EntryType.HP_PERCENTAGE, EntryType.ATK_PERCENTAGE, EntryType.DEF_PERCENTAGE}):
+    if (artifact.type
+            not in {ArtifactType.FLOWER_OF_LIFE, ArtifactType.PLUME_OF_DEATH}
+            and list(artifact.entry.keys())[0] not in {
+                EntryType.HP_PERCENTAGE, EntryType.ATK_PERCENTAGE,
+                EntryType.DEF_PERCENTAGE
+            }):
         return True
 
     # 双暴词条=>锁
@@ -244,7 +249,7 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
         )
         if debug_root:
             info = list(artifact.to_dict().values())
-            padding_col =  9 - len(info)
+            padding_col = 9 - len(info)
             for _ in range(padding_col):
                 info.append('')
             info.append(lock_status)
@@ -267,13 +272,14 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
             '副词条4',
             '当前是否锁',
         ]
-        debug_info.insert(0,headers)
+        debug_info.insert(0, headers)
         iolite.write_csv_lines(
             debug_root / f'artifacts.csv',
             debug_info,
             encoding='utf-8',
             newline='',
         )
+
 
 if __name__ == '__main__':
     import time
