@@ -14,6 +14,7 @@ from genshin_mummy.opt import (
     locate_roi_location_from_diffs,
 )
 from genshin_mummy.type import Box, Direction, Point
+from genshin_mummy.tools.logger import Logger
 
 
 @unique
@@ -75,6 +76,10 @@ class Artifact:
             result[f'副词条{idx}'] = f'{subentry_key.value}={subentry_value}'
         return result
 
+    def to_str(self):
+        return ' | '.join(
+            [f'{key}: {value}' for key, value in self.to_dict().items()])
+
 
 @attrs.define
 class ArtifactDescription:
@@ -85,6 +90,8 @@ class ArtifactDescription:
 
 @attrs.define
 class ArtifactPage:
+    logger: Logger = attrs.field(factory=Logger)
+
     mouse_move_time: float = attrs.field(default=0.2)
     rendering_time: float = attrs.field(default=0.5)
     scroll_steps: int = attrs.field(default=5)
@@ -130,10 +137,15 @@ class ArtifactPage:
             width=self.screen_width * self.rough_list_loc_ratio[2],
             height=self.screen_height * self.rough_list_loc_ratio[3],
         )
-        self.locate_artifact_list()
+        # 因为用差分的方法标定区域，而新增的日志会影响差分结果。故在区域标定时，暂时隐藏起日志区。
+        self.logger.hidden_logger()
         self.locate_artifact_description()
+        self.locate_artifact_list()
+        self.logger.show_logger()
+
         # TODO: 双向校验圣遗物列表区域和描述区域的坐标位置准确性
         self.first_artifact_loc = self.locate_selected_artifact()
+        self.logger.show_bbox(self.first_artifact_loc, '首行首个圣遗物')
         self.locate_artifact_rows_and_columns()
 
     def is_same_artifact(self, loc_a: Box, loc_b: Box):
@@ -146,9 +158,11 @@ class ArtifactPage:
             direction=Direction.DOWN,
         )
         if down_artifact_loc:
+            self.logger.show_bbox(down_artifact_loc, '次行圣遗物')
             self.y_offset = down_artifact_loc.center_y - self.first_artifact_loc.center_y
         else:
             # TODO
+            self.logger.warning('圣遗物行间距标定一样！这可能导致换行错误。')
             pass
 
         prev_loc = self.first_artifact_loc
@@ -164,9 +178,11 @@ class ArtifactPage:
                 x_offsets.append(next_loc.center_x - prev_loc.center_x)
             prev_loc = next_loc
         if x_offsets:
+            self.logger.info(f'圣遗物列间距：{str(x_offsets)}')
             self.x_offset = int(sum(x_offsets) / len(x_offsets))
         else:
             # TODO
+            self.logger.warning('首行圣遗物的X轴坐标标定异常！')
             pass
 
     def scroll(
@@ -192,9 +208,12 @@ class ArtifactPage:
                 duration=self.mouse_move_time,
             )
         else:
-            ensure_mouse_in_safe_location(loc=self.rough_list_loc,
-                                          duration=self.mouse_move_time,
-                                          use_box_center=True)
+            self.logger.warning('尚未获取精确的圣遗物列表区，采用粗略区域。')
+            ensure_mouse_in_safe_location(
+                loc=self.rough_list_loc,
+                duration=self.mouse_move_time,
+                use_box_center=True,
+            )
 
     def _scroll_artifact_list(
         self,
@@ -270,11 +289,14 @@ class ArtifactPage:
                     aim_x=self.col_points[0],
                     aim_y=loc.center_y + self.y_offset,
                 )
+                self.logger.info(f'当前圣遗物：{str(loc.to_tuple())}')
+                self.logger.info(f'下一行：{str(row_head_loc.to_tuple())}')
             else:
                 row_head_loc = None
 
             reach_end = False
             while row_head_loc is None:
+                self.logger.info('超过圣遗物列表区域，自动滚动')
                 reach_end = self.scroll_artifact_list(
                     direction=Direction.DOWN,
                     only_scrolling=False,
@@ -301,6 +323,7 @@ class ArtifactPage:
         return mask
 
     def locate_artifact_description(self):
+        self.logger.info('正在标定圣遗物详情区...')
         ensure_mouse_in_safe_location(
             loc=self.rough_desc_loc,
             use_box_center=True,
@@ -321,10 +344,13 @@ class ArtifactPage:
         if roi is None:
             # TODO:
             pass
+        else:
+            self.logger.show_bbox(roi, '圣遗物详情区')
         self.desc_loc = roi
         self.desc_loc_mask = self.generate_roi_mask(roi)
 
     def locate_artifact_list(self):
+        self.logger.info('正在标定圣遗物列表区...')
         self.move_to_artifact_list()
         prev_screen = pyautogui.screenshot()
         reach_end = self.scroll_artifact_list(
@@ -333,10 +359,11 @@ class ArtifactPage:
             only_scrolling=False,
         )
         after_screen = pyautogui.screenshot()
-        self.scroll_artifact_list(direction=Direction.UP, times=2)
+        self.scroll_artifact_list(direction=Direction.UP, times=3)
         diffs = diff_two_images(prev_screen, after_screen)
 
         roi = locate_roi_location_from_diffs(diffs, self.diff_thres_ratio)
+        self.logger.show_bbox(roi, '圣遗物列表区')
 
         if roi and not reach_end:
             self.list_loc = roi
@@ -349,19 +376,26 @@ class ArtifactPage:
 
         self.list_loc_mask = self.generate_roi_mask(roi)
 
-    def locate_selected_artifact(self):
+    def locate_selected_artifact(self, delay: float = 0):
         # 基于被选中圣遗物有闪烁效果，获取选中圣遗物外边框
+        self.logger.info('正在定位当前选中的圣遗物...')
         prev_screen = pyautogui.screenshot()
         prev_screen = np.asarray(prev_screen)
+        if delay > 0:
+            time.sleep(delay)
         after_screen = pyautogui.screenshot()
         after_screen = np.asarray(after_screen)
         diffs = diff_two_images(prev_screen, after_screen)
         diffs = cv2.bitwise_and(diffs, diffs, mask=self.list_loc_mask)
         diffs = cv2.morphologyEx(diffs, cv2.MORPH_OPEN, kernel=(3, 3))
         x, y, w, h = cv2.boundingRect(diffs)
-        # TODO: resolve find noting
-        artifact_loc = Box(left=x, top=y, width=w, height=h)
-        return artifact_loc
+
+        if x + y + w + h == 0:
+            # 可能是CPU性能过好，导致前后两次截图时差过小，未能得到差分图
+            return self.locate_selected_artifact(delay=0.1)
+        else:
+            artifact_loc = Box(left=x, top=y, width=w, height=h)
+            return artifact_loc
 
     def locate_aim_artifact_based_on_point(
         self,

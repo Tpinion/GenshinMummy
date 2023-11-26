@@ -250,8 +250,13 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
             mask=artifact_page.desc_loc_mask,
         )
         # PILImage.fromarray(screen).save(debug_root / f'{idx}_ocr.png')
-        artifact, level_chunk = recognize_artifact_informations(ocr, screen)
-        logger.info(f'圣遗物信息：{artifact.to_str()}')
+        try:
+            artifact, level_chunk = recognize_artifact_informations(
+                ocr, screen)
+            logger.info(f'圣遗物信息：{artifact.to_str()}')
+        except Exception as e:
+            logger.warning(f'识别圣遗物信息失败：{e}')
+            continue
 
         expect_status = whether_or_not_to_lock(artifact)
         lock_status, icon_center = locate_lock_icon(
@@ -300,4 +305,10 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
 
 
 if __name__ == '__main__':
-    run_pipeline(1600, './debug_folder')
+    import os
+    script_folder = os.path.join(
+        os.path.expanduser("~"),
+        'Desktop',
+        'GenshinMummy',
+    )
+    run_pipeline(1600, script_folder)
