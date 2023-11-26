@@ -23,6 +23,8 @@ from genshin_mummy.ocr.type import (
 )
 
 from genshin_mummy.type import Box, Direction, Point
+from genshin_mummy.tools.notifier import notify, notify_countdown
+
 
 # TODO: 视PADDLE OCR结果可能要归一化
 SPACE_CHAR = ' '
@@ -226,6 +228,11 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
         from pathlib import Path
         debug_root = Path(debug_root)
         debug_info = []
+        notify(f'调试路径：{debug_root}')
+
+    notify('你有10秒钟的时间切换到圣遗物页面，记得选择左上角圣遗物哦~')
+    notify_countdown(10)
+
     ocr = PaddleOCR(use_angle_cls=False, lang="ch")
     artifact_page = ArtifactPage()
 
@@ -282,6 +289,4 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
 
 
 if __name__ == '__main__':
-    import time
-    time.sleep(10)
     run_pipeline(1600, './debug_folder')
