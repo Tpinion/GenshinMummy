@@ -1,4 +1,5 @@
 from typing import Optional
+import time
 
 import cv2
 import numpy as np
@@ -6,7 +7,6 @@ import pyautogui
 import iolite
 from paddleocr import PaddleOCR
 from PIL import Image as PILImage
-
 
 from genshin_mummy.artifact_helper.type import (
     Artifact,
@@ -23,8 +23,7 @@ from genshin_mummy.ocr.type import (
 )
 
 from genshin_mummy.type import Box, Direction, Point
-from genshin_mummy.tools.notifier import notify, notify_countdown
-
+from genshin_mummy.tools.logger import Logger
 
 # TODO: 视PADDLE OCR结果可能要归一化
 SPACE_CHAR = ' '
@@ -228,22 +227,31 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
         from pathlib import Path
         debug_root = Path(debug_root)
         debug_info = []
-        notify(f'调试路径：{debug_root}')
 
-    notify('你有10秒钟的时间切换到圣遗物页面，记得选择左上角圣遗物哦~')
-    notify_countdown(10)
+    logger = Logger()
+    delay_seconds = 10
+    logger.notify(
+        f'你有{delay_seconds}秒钟的时间切换到圣遗物页面\n记得选择左上角圣遗物哦~',
+        3000,
+    )
+    logger.notify_countdown(delay_seconds)
 
     ocr = PaddleOCR(use_angle_cls=False, lang="ch")
-    artifact_page = ArtifactPage()
+
+    artifact_page = ArtifactPage(logger=logger)
 
     for idx, _ in enumerate(artifact_page.iter_artifacts(max_num)):
+        logger.info(f'正在处理第{idx + 1}个圣遗物...')
         screen = pyautogui.screenshot()
         screen = np.asarray(screen)
-        screen = cv2.bitwise_and(screen,
-                                 screen,
-                                 mask=artifact_page.desc_loc_mask)
+        screen = cv2.bitwise_and(
+            screen,
+            screen,
+            mask=artifact_page.desc_loc_mask,
+        )
         # PILImage.fromarray(screen).save(debug_root / f'{idx}_ocr.png')
         artifact, level_chunk = recognize_artifact_informations(ocr, screen)
+        logger.info(f'圣遗物信息：{artifact.to_str()}')
 
         expect_status = whether_or_not_to_lock(artifact)
         lock_status, icon_center = locate_lock_icon(
@@ -286,6 +294,9 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
             encoding='utf-8',
             newline='',
         )
+
+    logger.info('当前页面圣遗物判断结束, 程序将在10秒后退出')
+    time.sleep(10)
 
 
 if __name__ == '__main__':
