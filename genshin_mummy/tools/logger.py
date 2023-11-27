@@ -1,18 +1,20 @@
+import logging
+import time
+from datetime import datetime
+from enum import Enum
+from logging import FileHandler, Handler
+from os import PathLike
 from threading import Thread
 from tkinter import (
     END,
-    HORIZONTAL,
     VERTICAL,
     Canvas,
+    Label,
     Listbox,
     Scrollbar,
     Tk,
-    Label,
 )
-from typing import Optional, Tuple, Union
-from enum import Enum
-
-import attrs
+from typing import Tuple, Union
 
 from genshin_mummy.type import Box
 
@@ -26,19 +28,60 @@ class WidgetPosition(Enum):
     BOTTOM_CENTER = 'bottom_center'
 
 
-@attrs.define
-class Logger:
-    widget: Optional[Tk] = attrs.field(default=None)
-    listbox: Optional[Listbox] = attrs.field(default=None)
+def create_widget(
+    size: Tuple[Union[int, float], Union[int, float]] = (1.0, 1.0),
+    position: WidgetPosition = WidgetPosition.TOP_LEFT,
+    alpha: float = 1.0,
+    bg: str = TRANSPARENT_COLOR,
+):
+    widget = Tk()
+    widget.configure(bg=bg)
+    widget.overrideredirect(True)
+    widget.attributes('-topmost', True)
+    widget.attributes('-alpha', alpha)
 
-    def __attrs_post_init__(self):
+    widget.wm_attributes('-transparentcolor', TRANSPARENT_COLOR)
+
+    screen_width = widget.winfo_screenwidth()
+    screen_height = widget.winfo_screenheight()
+
+    widget_width = int(size[0] *
+                       screen_width) if isinstance(size[0], float) else size[0]
+    widget_height = int(size[1] * screen_height) if isinstance(
+        size[1], float) else size[1]
+
+    if position == WidgetPosition.TOP_LEFT:
+        x = 0
+        y = 0
+    elif position == WidgetPosition.CENTER:
+        x = (screen_width - widget_width) // 2
+        y = (screen_height - widget_height) // 2
+    elif position == WidgetPosition.BOTTOM_CENTER:
+        x = (screen_width - widget_width) // 2
+        y = screen_height - widget_height
+    else:
+        raise NotImplementedError()
+
+    widget.geometry(f'{widget_width}x{widget_height}+{x}+{y}')
+
+    return widget
+
+
+class ScreenHandler(Handler):
+
+    def __init__(self):
+        super().__init__()
+        self.widget = None
+        self.listbox = None
+
         Thread(
             target=self.init_screen_logger,
             daemon=True,
         ).start()
+        time.sleep(1)
 
     def init_screen_logger(self):
-        widget = self.create_widget(
+        widget = create_widget(
             size=(0.5, 0.05),
             position=WidgetPosition.BOTTOM_CENTER,
             alpha=0.5,
@@ -46,81 +89,28 @@ class Logger:
         self.widget = widget
 
         vert_bar = Scrollbar(widget, orient=VERTICAL)
-        # hori_bar = Scrollbar(widget, orient=HORIZONTAL)
         self.listbox = Listbox(
             widget,
-            # xscrollcommand=hori_bar.set,
             yscrollcommand=vert_bar.set,
             borderwidth=0,
             width=widget.winfo_width(),
         )
-        # hori_bar.config(command=self.listbox.xview)
         vert_bar.config(command=self.listbox.yview)
 
-        # hori_bar.pack(side="bottom", fill="x")
         vert_bar.pack(side="right", fill="y")
         self.listbox.pack(side="left", fill="both", expand=True)
 
         widget.mainloop()
 
-    def hidden_logger(self):
-        if self.widget:
-            self.widget.withdraw()
+    def emit(self, record):
+        self.listbox.insert(END, self.format(record))
+        self.listbox.see(END)
 
-    def show_logger(self):
-        if self.widget:
-            self.widget.deiconify()
 
-    def info(self, message: str):
-        message = f'INFO: {message}'
-        if self.listbox:
-            self.listbox.insert(END, message)
-            self.listbox.see(END)
+class ExLogger(logging.Logger):
 
-    def warning(self, message: str):
-        message = f'WARNING: {message}'
-        if self.listbox:
-            self.listbox.insert(END, message)
-            self.listbox.see(END)
-
-    def create_widget(
-        self,
-        size: Tuple[Union[int, float], Union[int, float]] = (1.0, 1.0),
-        position: WidgetPosition = WidgetPosition.TOP_LEFT,
-        alpha: float = 1.0,
-        bg: str = TRANSPARENT_COLOR,
-    ):
-        widget = Tk()
-        widget.configure(bg=bg)
-        widget.overrideredirect(True)
-        widget.attributes('-topmost', True)
-        widget.attributes('-alpha', alpha)
-
-        widget.wm_attributes('-transparentcolor', TRANSPARENT_COLOR)
-
-        screen_width = widget.winfo_screenwidth()
-        screen_height = widget.winfo_screenheight()
-
-        widget_width = int(size[0] * screen_width) if isinstance(
-            size[0], float) else size[0]
-        widget_height = int(size[1] * screen_height) if isinstance(
-            size[1], float) else size[1]
-
-        if position == WidgetPosition.TOP_LEFT:
-            x = 0
-            y = 0
-        elif position == WidgetPosition.CENTER:
-            x = (screen_width - widget_width) // 2
-            y = (screen_height - widget_height) // 2
-        elif position == WidgetPosition.BOTTOM_CENTER:
-            x = (screen_width - widget_width) // 2
-            y = screen_height - widget_height
-        else:
-            raise NotImplementedError()
-
-        widget.geometry(f'{widget_width}x{widget_height}+{x}+{y}')
-
-        return widget
+    def __init__(self, name: str, level: int = logging.NOTSET):
+        super().__init__(name, level)
 
     def default_label(self, widget: Tk, message: str):
         screen_width = widget.winfo_screenwidth()
@@ -136,14 +126,14 @@ class Logger:
         return label
 
     def notify(self, message: str, destory_ms: int = 2000):
-        widget = self.create_widget(position=WidgetPosition.CENTER)
+        widget = create_widget(position=WidgetPosition.CENTER)
         label = self.default_label(widget, message)
         label.place(relwidth=1, rely=0.5)
         widget.after(destory_ms, widget.destroy)
         widget.mainloop()
 
     def notify_countdown(self, seconds: int):
-        widget = self.create_widget(position=WidgetPosition.CENTER)
+        widget = create_widget(position=WidgetPosition.CENTER)
         label = self.default_label(widget, '倒计时即将开始')
         label.place(relwidth=1, rely=0.5)
 
@@ -158,7 +148,7 @@ class Logger:
         widget.mainloop()
 
     def show_bbox(self, box: Box, box_name: str = ''):
-        widget = self.create_widget()
+        widget = create_widget()
 
         canvas = Canvas(
             widget,
@@ -192,7 +182,10 @@ class Logger:
         widget.mainloop()
 
 
-if __name__ == '__main__':
-    import time
-    logger = Logger()
-    logger.show_bbox(Box(0, 0, 100, 100))
+def create_logger(name: str, app_folder: PathLike) -> ExLogger:
+    logger = logging.getLogger(name)
+    logger.__class__ = ExLogger
+    logger.setLevel(logging.INFO)
+    log_name = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    logger.addHandler(FileHandler(app_folder / f'{log_name}.log'))
+    return logger

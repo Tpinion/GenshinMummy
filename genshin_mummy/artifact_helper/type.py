@@ -14,7 +14,7 @@ from genshin_mummy.opt import (
     locate_roi_location_from_diffs,
 )
 from genshin_mummy.type import Box, Direction, Point
-from genshin_mummy.tools.logger import Logger
+from genshin_mummy.tools.logger import ExLogger, ScreenHandler
 
 
 @unique
@@ -90,7 +90,7 @@ class ArtifactDescription:
 
 @attrs.define
 class ArtifactPage:
-    logger: Logger = attrs.field(factory=Logger)
+    logger: ExLogger = attrs.field()
 
     mouse_move_time: float = attrs.field(default=0.2)
     rendering_time: float = attrs.field(default=0.5)
@@ -137,11 +137,12 @@ class ArtifactPage:
             width=self.screen_width * self.rough_list_loc_ratio[2],
             height=self.screen_height * self.rough_list_loc_ratio[3],
         )
-        # 因为用差分的方法标定区域，而新增的日志会影响差分结果。故在区域标定时，暂时隐藏起日志区。
-        self.logger.hidden_logger()
+
         self.locate_artifact_description()
         self.locate_artifact_list()
-        self.logger.show_logger()
+
+        # 标定前不要添加屏幕日志，不然影响CV的差分算法
+        self.logger.addHandler(ScreenHandler())
 
         # TODO: 双向校验圣遗物列表区域和描述区域的坐标位置准确性
         self.first_artifact_loc = self.locate_selected_artifact()
@@ -208,7 +209,6 @@ class ArtifactPage:
                 duration=self.mouse_move_time,
             )
         else:
-            self.logger.warning('尚未获取精确的圣遗物列表区，采用粗略区域。')
             ensure_mouse_in_safe_location(
                 loc=self.rough_list_loc,
                 duration=self.mouse_move_time,
@@ -262,6 +262,7 @@ class ArtifactPage:
 
     def iter_artifacts(self, max_num: Optional[int] = None):
         count = 0
+        self.logger.info('正在移动圣遗物列表页至顶...')
         self.scroll_artifact_list(
             direction=Direction.UP,
             times=1,
@@ -296,7 +297,7 @@ class ArtifactPage:
 
             reach_end = False
             while row_head_loc is None:
-                self.logger.info('超过圣遗物列表区域，自动滚动')
+                self.logger.info('超过圣遗物列表区域，开始滚动下移...')
                 reach_end = self.scroll_artifact_list(
                     direction=Direction.DOWN,
                     only_scrolling=False,
@@ -309,6 +310,7 @@ class ArtifactPage:
                     aim_y=loc.center_y + self.y_offset,
                 )
             if reach_end:
+                self.logger.info('已到达圣遗物列表底部，结束当前任务。')
                 break
 
     def wait_rendering(self, count: int = 1):

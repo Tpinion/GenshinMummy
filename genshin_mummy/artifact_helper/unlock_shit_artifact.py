@@ -6,7 +6,6 @@ import numpy as np
 import pyautogui
 import iolite
 from paddleocr import PaddleOCR
-from PIL import Image as PILImage
 
 from genshin_mummy.artifact_helper.type import (
     Artifact,
@@ -23,7 +22,7 @@ from genshin_mummy.ocr.type import (
 )
 
 from genshin_mummy.type import Box, Direction, Point
-from genshin_mummy.tools.logger import Logger
+from genshin_mummy.tools.logger import create_logger
 
 # TODO: 视PADDLE OCR结果可能要归一化
 SPACE_CHAR = ' '
@@ -226,13 +225,15 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
     if debug_root:
         from pathlib import Path
         debug_root = Path(debug_root)
+        debug_root.mkdir(parents=True, exist_ok=True)
         debug_info = []
 
-    logger = Logger()
+    logger = create_logger('unlock_those_shit', debug_root)
+
     delay_seconds = 10
     logger.notify(
-        f'你有{delay_seconds}秒钟的时间切换到圣遗物页面\n记得选择左上角圣遗物哦~',
-        3000,
+        message=f'你有{delay_seconds}秒钟的时间切换到圣遗物页面\n记得选择左上角圣遗物哦~',
+        destory_ms=3000,
     )
     logger.notify_countdown(delay_seconds)
 
