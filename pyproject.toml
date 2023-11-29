@@ -14,6 +14,7 @@ dependencies = [
     "attrs~=23.1.0",
     "iolite~=22.2.0",
     "numpy~=1.24.4",
+    "openpyxl~=3.1.2",
     "pyautogui~=0.9.54",
     "pillow~=10.1.0",
     "pyscreeze~=0.1.30",
@@ -26,3 +27,6 @@ dependencies = [
 dev = [
     "yapf"
 ]
+
+[project.scripts]
+fuck-shit-artifact = "genshin_mummy.artifact_helper.unlock_shit_artifact:main"

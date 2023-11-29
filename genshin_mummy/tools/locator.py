@@ -11,7 +11,6 @@ from PIL.Image import Image as PILImage
 
 from genshin_mummy.type import Box
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel('NOTSET')
 

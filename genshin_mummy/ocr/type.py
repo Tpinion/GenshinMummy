@@ -5,7 +5,6 @@ from enum import Enum, unique
 from typing import DefaultDict, List, Optional, Sequence
 
 import attrs
-
 from genshin_mummy.type import Box, Direction
 
 
@@ -58,7 +57,7 @@ class TextChunkCollection:
         if text in self.text_to_text_chunks:
             return self.text_to_text_chunks[text]
         elif conf:
-            matched_chunks = []
+            matched_chunks: List[TextChunk] = []
             for key, chunks in self.text_to_text_chunks.items():
                 matcher = SequenceMatcher(a=text, b=key)
                 if matcher.ratio() > conf:
@@ -68,7 +67,7 @@ class TextChunkCollection:
         return []
 
     def find_pattern(self, pattern: str):
-        matched_chunks = []
+        matched_chunks: List[TextChunk] = []
         for text, chunks in self.text_to_text_chunks.items():
             result = re.match(pattern, text)
             if result and result.group():
@@ -77,7 +76,7 @@ class TextChunkCollection:
         return matched_chunks
 
     def find_startswith(self, prefix: str):
-        matched_chunks = []
+        matched_chunks: List[TextChunk] = []
         for text, chunks in self.text_to_text_chunks.items():
             if text.startswith(prefix):
                 matched_chunks.extend(chunks)

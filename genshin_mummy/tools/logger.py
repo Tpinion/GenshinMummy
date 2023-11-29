@@ -68,7 +68,6 @@ def create_widget(
 
 
 class ScreenHandler(Handler):
-
     def __init__(self):
         super().__init__()
         self.widget = None
@@ -108,7 +107,6 @@ class ScreenHandler(Handler):
 
 
 class ExLogger(logging.Logger):
-
     def __init__(self, name: str, level: int = logging.NOTSET):
         super().__init__(name, level)
 
@@ -182,10 +180,9 @@ class ExLogger(logging.Logger):
         widget.mainloop()
 
 
-def create_logger(name: str, app_folder: PathLike) -> ExLogger:
+def create_logger(name: str, logger_folder: PathLike) -> ExLogger:
     logger = logging.getLogger(name)
     logger.__class__ = ExLogger
     logger.setLevel(logging.INFO)
-    log_name = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    logger.addHandler(FileHandler(app_folder / f'{log_name}.log'))
+    logger.addHandler(FileHandler(logger_folder / 'mummy.log'))
     return logger
