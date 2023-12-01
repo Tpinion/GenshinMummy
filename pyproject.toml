@@ -21,11 +21,13 @@ dependencies = [
     "opencv-python~=4.6.0.66",
     "paddlepaddle~=2.5.2",
     "paddleocr~=2.7.0.3",
+    "termcolor~=2.3.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "yapf"
+    "yapf~=0.40.2",
+    "pytest~=7.4.3"
 ]
 
 [project.scripts]
