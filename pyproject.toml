@@ -27,7 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "yapf~=0.40.2",
-    "pytest~=7.4.3"
+    "pytest~=7.4.3",
 ]
 
 [project.scripts]

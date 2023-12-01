@@ -12,10 +12,10 @@ import numpy as np
 import pyautogui
 from paddleocr import PaddleOCR
 
+from genshin_mummy.artifact_helper.page_manager import ArtifactPage
 from genshin_mummy.artifact_helper.judge import ArtifactJudge, Conclusion
 from genshin_mummy.artifact_helper.type import (
     Artifact,
-    ArtifactPage,
     ArtifactType,
     EntryType,
 )
