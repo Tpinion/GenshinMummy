@@ -81,7 +81,7 @@ class EntryCondition:
 
     def all_not_match(self, entries: Sequence[EntryType]):
         for entry in entries:
-            if not self.judge(entry):
+            if self.judge(entry):
                 return False
         return True
 
@@ -155,8 +155,8 @@ class Strategy:
         if self.main_entry_condition and not self.main_entry_condition.judge(
                 artifact):
             return False
-        if (self.subentries_condition
-                and not self.subentries_condition.judge(artifact)):
+        if self.subentries_condition and not self.subentries_condition.judge(
+                artifact):
             return False
         return True
 

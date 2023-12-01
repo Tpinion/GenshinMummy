@@ -163,3 +163,52 @@ def test_shit_1():
     jduge = ArtifactJudge(fout.name)
     conclusion = jduge.judge(artifact)
     assert conclusion == Conclusion.UNLOCK
+
+
+def test_shit_2():
+    excel_rows = [
+        ["圣遗物类型条件", "等级条件", "星级条件", "主词条条件", "副词条条件", "期望结果"],
+        [None, None, None, None, "有防御力，有防御力百分比", "不锁"],
+        [None, None, None, None, "有防御力，有生命值", "不锁"],
+        [None, None, None, None, None, "锁"],
+    ]
+
+    fd, fp = tempfile.mkstemp(suffix='.xlsx')
+
+    with open(fp, 'w') as fout:
+        workbook = openpyxl.Workbook()
+        sheet = workbook.create_sheet("Active")
+        for row in excel_rows:
+            sheet.append(row)
+        workbook.save(fout.name)
+
+    artifacts = [
+        (Artifact(
+            name='角斗士的留恋',
+            type=ArtifactType.FLOWER_OF_LIFE,
+            entry={EntryType.HP_PERCENTAGE: "22"},
+            stars=5,
+            level=20,
+            subentries={
+                EntryType.HP: "22",
+                EntryType.ATK: "22",
+                EntryType.DEF: "22",
+            },
+        ), Conclusion.UNLOCK),
+        (Artifact(
+            name='角斗士的留恋',
+            type=ArtifactType.FLOWER_OF_LIFE,
+            entry={EntryType.HP_PERCENTAGE: "22"},
+            stars=5,
+            level=20,
+            subentries={
+                EntryType.HP_PERCENTAGE: "22",
+                EntryType.ATK: "22",
+                EntryType.DEF: "22",
+            },
+        ), Conclusion.LOCK),
+    ]
+
+    jduge = ArtifactJudge(fout.name)
+    for artifact, conclusion in artifacts:
+        assert jduge.judge(artifact) == conclusion
