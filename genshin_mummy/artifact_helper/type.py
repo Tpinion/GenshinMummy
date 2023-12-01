@@ -80,6 +80,9 @@ class Artifact:
         return ' | '.join(
             [f'{key}: {value}' for key, value in self.to_dict().items()])
 
+    def __str__(self) -> str:
+        return self.to_str()
+
 
 @attrs.define
 class ArtifactDescription:
@@ -160,7 +163,7 @@ class ArtifactPage:
         )
         if down_artifact_loc:
             self.logger.show_bbox(down_artifact_loc, '次行圣遗物')
-            self.y_offset = down_artifact_loc.center_y - self.first_artifact_loc.center_y
+            self.y_offset = down_artifact_loc.center_y - self.first_artifact_loc.center_y  # noqa
         else:
             # TODO
             self.logger.warning('圣遗物行间距标定一样！这可能导致换行错误。')
@@ -446,11 +449,3 @@ class ArtifactPage:
         ):
             return next_artifact_loc
         return None
-
-
-if __name__ == '__main__':
-    import time
-    time.sleep(5)
-    artifact_page = ArtifactPage()
-    for _ in artifact_page.iter_artifacts(max_num=10):
-        pass
