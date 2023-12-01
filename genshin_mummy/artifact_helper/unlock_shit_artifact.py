@@ -1,12 +1,18 @@
-from typing import Optional
+import ctypes
+import os
+import platform
 import time
+from datetime import datetime
+from pathlib import Path
+from typing import List
 
 import cv2
+import iolite
 import numpy as np
 import pyautogui
-import iolite
 from paddleocr import PaddleOCR
 
+from genshin_mummy.artifact_helper.judge import ArtifactJudge, Conclusion
 from genshin_mummy.artifact_helper.type import (
     Artifact,
     ArtifactPage,
@@ -20,9 +26,8 @@ from genshin_mummy.ocr.type import (
     TextChunkCollection,
     build_text_chunks_from_paddle_ocr,
 )
-
-from genshin_mummy.type import Box, Direction, Point
 from genshin_mummy.tools.logger import create_logger
+from genshin_mummy.type import Box, Direction, Point
 
 # TODO: 视PADDLE OCR结果可能要归一化
 SPACE_CHAR = ' '
@@ -97,7 +102,7 @@ def recognize_artifact_informations(ocr, screen: np.ndarray):
         _chunks = chunk_clct.find_startswith(PLUS_CHAR)
         level_chunk = _chunks[0]
 
-    subentry_chunks = []
+    subentry_chunks: List[TextChunk] = []
     subentry_chunk = level_chunk.bottom_text_chunk
     while True:
         if subentry_chunk.text.startswith(DOT_CHAR):
@@ -143,47 +148,6 @@ def recognize_artifact_informations(ocr, screen: np.ndarray):
     return artifact, level_chunk
 
 
-def whether_or_not_to_lock(artifact):
-    # TODO: 抽象出策略类
-    # 算法参考
-    # https://www.bilibili.com/video/BV1sZ4y1e7h8/?spm_id_from=333.1007.top_right_bar_window_history.content.click
-    # https://www.bilibili.com/video/BV1mB4y177a6/?spm_id_from=333.1007.top_right_bar_window_history.content.click
-
-    # 等级大于0=>锁
-    if artifact.level > 0:
-        return True
-
-    # 非五星=>不锁
-    if artifact.stars < 5:
-        return False
-
-    # 沙、杯、帽主词条为类别独有词条=>锁
-    if (artifact.type
-            not in {ArtifactType.FLOWER_OF_LIFE, ArtifactType.PLUME_OF_DEATH}
-            and list(artifact.entry.keys())[0] not in {
-                EntryType.HP_PERCENTAGE, EntryType.ATK_PERCENTAGE,
-                EntryType.DEF_PERCENTAGE
-            }):
-        return True
-
-    # 双暴词条=>锁
-    subentry_types = set(artifact.subentries.keys())
-    if {EntryType.CRIT_DMG, EntryType.CRIT_RATE}.issubset(subentry_types):
-        return True
-
-    # 初始四词条 且不要存在所有小攻防命都有=>锁
-    if len(subentry_types) == 4 and not {
-            EntryType.HP, EntryType.ATK, EntryType.DEF
-    }.issubset(subentry_types):
-        return True
-
-    # 小攻击、小防御、小生命大于等于两个=>不锁
-    if len({EntryType.HP, EntryType.ATK, EntryType.DEF} & subentry_types) >= 2:
-        return False
-
-    return True
-
-
 def locate_lock_icon(
     top_limit: int,
     bottom_limit: int,
@@ -211,9 +175,9 @@ def locate_lock_icon(
     # TODO: 经验值有效但不太保险
     THRESH = 30
     if np.mean(channel_red_roi) - np.mean(roi[:, :, 1:]) > THRESH:
-        lock_status = True
+        lock_status = Conclusion.LOCK
     else:
-        lock_status = False
+        lock_status = Conclusion.UNLOCK
     center_point = Point(
         x=roi_left + roi_width // 2,
         y=roi_top + roi_height // 2,
@@ -221,14 +185,22 @@ def locate_lock_icon(
     return lock_status, center_point
 
 
-def run_pipeline(max_num: int, debug_root: Optional[str] = None):
-    if debug_root:
-        from pathlib import Path
-        debug_root = Path(debug_root)
-        debug_root.mkdir(parents=True, exist_ok=True)
-        debug_info = []
+def scan_strategy_file(app_folder: Path):
+    for fp in app_folder.glob('*.xlsx'):
+        return str(fp.resolve())
+    return None
 
-    logger = create_logger('unlock_those_shit', debug_root)
+
+def run_pipeline(max_num: int, app_fd: str):
+    app_folder = Path(app_fd)
+    strategy_fp = scan_strategy_file(app_folder)
+
+    logger_folder = app_folder / datetime.now().strftime('%Y%m%d_%H%M%S')
+    logger_folder.mkdir(parents=True, exist_ok=True)
+
+    artifact_infos = []
+
+    logger = create_logger('unlock_those_shit', logger_folder)
 
     delay_seconds = 10
     logger.notify(
@@ -240,76 +212,101 @@ def run_pipeline(max_num: int, debug_root: Optional[str] = None):
     ocr = PaddleOCR(use_angle_cls=False, lang="ch")
 
     artifact_page = ArtifactPage(logger=logger)
+    artifact_judge = ArtifactJudge(config_fp=strategy_fp, logger=logger)
 
-    for idx, _ in enumerate(artifact_page.iter_artifacts(max_num)):
-        logger.info(f'正在处理第{idx + 1}个圣遗物...')
-        screen = pyautogui.screenshot()
-        screen = np.asarray(screen)
-        screen = cv2.bitwise_and(
-            screen,
-            screen,
-            mask=artifact_page.desc_loc_mask,
-        )
-        # PILImage.fromarray(screen).save(debug_root / f'{idx}_ocr.png')
-        try:
-            artifact, level_chunk = recognize_artifact_informations(
-                ocr, screen)
-            logger.info(f'圣遗物信息：{artifact.to_str()}')
-        except Exception as e:
-            logger.warning(f'识别圣遗物信息失败：{e}')
-            continue
+    try:
+        for idx, _ in enumerate(artifact_page.iter_artifacts(max_num)):
+            logger.info(f'正在处理第{idx + 1}个圣遗物...')
+            screen = pyautogui.screenshot()
+            screen = np.asarray(screen)
+            screen = cv2.bitwise_and(
+                screen,
+                screen,
+                mask=artifact_page.desc_loc_mask,
+            )
+            try:
+                artifact, level_chunk = recognize_artifact_informations(
+                    ocr,
+                    screen,
+                )
+                logger.info(f'圣遗物信息：{str(artifact)}')
+            except Exception as error:
+                logger.error(f'识别圣遗物信息失败：{error}')
+                continue
 
-        expect_status = whether_or_not_to_lock(artifact)
-        lock_status, icon_center = locate_lock_icon(
-            top_limit=int(level_chunk.top),
-            bottom_limit=int(level_chunk.bottom),
-            left_limit=int(artifact_page.desc_loc.left +
-                           artifact_page.desc_loc.width // 2),
-            screen=screen,
-            desc_loc_mask=artifact_page.desc_loc_mask.copy(),
-        )
-        if debug_root:
+            expect_status = artifact_judge.judge(artifact)
+
             info = list(artifact.to_dict().values())
             padding_col = 9 - len(info)
             for _ in range(padding_col):
                 info.append('')
-            info.append(lock_status)
-            debug_info.append(info)
-        if lock_status != expect_status:
-            pyautogui.leftClick(
-                icon_center.x,
-                icon_center.y,
-                duration=artifact_page.mouse_move_time,
+            info.append(expect_status.value)
+            artifact_infos.append(info)
+
+            if expect_status == Conclusion.UNKNOWN:
+                continue
+
+            lock_status, icon_center = locate_lock_icon(
+                top_limit=int(level_chunk.top),
+                bottom_limit=int(level_chunk.bottom),
+                left_limit=int(artifact_page.desc_loc.left +
+                               artifact_page.desc_loc.width // 2),
+                screen=screen,
+                desc_loc_mask=artifact_page.desc_loc_mask.copy(),
             )
 
-        artifact_page.move_to_artifact_list()
+            if lock_status != expect_status:
+                pyautogui.leftClick(
+                    icon_center.x,
+                    icon_center.y,
+                    duration=artifact_page.mouse_move_time,
+                )
 
-    if debug_root and debug_info:
-        headers = list(artifact.to_dict().keys())[:5]
-        headers += [
-            '副词条1',
-            '副词条2',
-            '副词条3',
-            '副词条4',
-            '当前是否锁',
-        ]
-        debug_info.insert(0, headers)
-        iolite.write_csv_lines(
-            debug_root / f'artifacts.csv',
-            debug_info,
-            encoding='utf-8',
-            newline='',
-        )
+            artifact_page.move_to_artifact_list()
+    except Exception as error:
+        logger.error(f'意外结束程序：{error}')
+    finally:
+        if artifact_infos:
+            headers = list(artifact.to_dict().keys())[:5]
+            headers += [
+                '副词条1',
+                '副词条2',
+                '副词条3',
+                '副词条4',
+                '当前是否锁',
+            ]
+            artifact_infos.insert(0, headers)
+            iolite.write_csv_lines(
+                logger_folder / 'artifacts.csv',
+                artifact_infos,
+                encoding='utf-8',
+                newline='',
+            )
 
-    logger.info('当前页面圣遗物判断结束, 程序将在10秒后退出')
-    time.sleep(10)
+            logger.info('当前页面圣遗物判断结束, 程序将在10秒后退出')
+        time.sleep(10)
 
 
-if __name__ == '__main__':
-    import os
-    script_folder = os.path.join(
+def main():
+    app_folder = os.path.join(
         os.path.expanduser("~"),
         'Desktop',
         'GenshinMummy',
     )
-    run_pipeline(1600, script_folder)
+
+    system = platform.system()
+    is_admin = False
+
+    if system == 'Windows' and ctypes.windll.shell32.IsUserAnAdmin():
+        is_admin = True
+    else:
+        is_admin = os.getuid() == 0
+
+    if is_admin:
+        run_pipeline(1800, app_folder)
+    else:
+        print("需要管理员权限打开终端哦~")
+
+
+if __name__ == '__main__':
+    main()
