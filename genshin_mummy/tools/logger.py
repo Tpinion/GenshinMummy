@@ -68,6 +68,7 @@ def create_widget(
 
 
 class ScreenHandler(Handler):
+
     def __init__(self):
         super().__init__()
         self.widget = None
@@ -107,6 +108,7 @@ class ScreenHandler(Handler):
 
 
 class ExLogger(logging.Logger):
+
     def __init__(self, name: str, level: int = logging.NOTSET):
         super().__init__(name, level)
 
