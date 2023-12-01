@@ -35,7 +35,7 @@ STAR_CHAR = '★'
 PLUS_CHAR = '+'
 DOT_CHAR = '·'
 PERCENT_CHAR = '%'
-SUBENTRY_PATTERN = f'{DOT_CHAR}.*?\{PLUS_CHAR}[\d.]*[{PERCENT_CHAR}]?'
+SUBENTRY_PATTERN = f'{DOT_CHAR}.*?\{PLUS_CHAR}[\d.]*[{PERCENT_CHAR}]?'  # noqa
 
 
 def get_entry_type(entry_key: str, entry_value: str):
