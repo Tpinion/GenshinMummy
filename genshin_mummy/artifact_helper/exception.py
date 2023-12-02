@@ -4,6 +4,7 @@ from genshin_mummy.artifact_helper.type import EntryType, ArtifactType
 
 
 class BadExcelHeader(Exception):
+
     def __str__(self):
         message = (
             f"\n\n{colored('(｡・`ω´･)请不要私自修改模板表头~', 'red')}\n"
@@ -14,12 +15,14 @@ class BadExcelHeader(Exception):
 
 
 class SheetNotFound(Exception):
+
     def __str__(self):
         message = (f"\n\n{colored('(｡・`ω´･)至少提供一个Sheet给我吧', 'red')}\n")
         return message
 
 
 class LossActiveSheet(Exception):
+
     def __str__(self):
         message = (
             f"\n\n{colored('(｡・`ω´･)你的Excel有多个Sheet=>所以我不知道改用哪个', 'red')}\n"
@@ -28,6 +31,7 @@ class LossActiveSheet(Exception):
 
 
 class RowValueError(Exception):
+
     def __init__(self, line: str, tag: str):
         self.line = line
         self.tag = tag
@@ -39,6 +43,7 @@ class RowValueError(Exception):
 
 
 class BadArtifactType(RowValueError):
+
     def __init__(self, artifact_type: str, line: str = '', tag: str = ''):
         super().__init__(line, tag)
         self.artifact_type = artifact_type
@@ -55,6 +60,7 @@ class BadArtifactType(RowValueError):
 
 
 class BadNumberOperator(RowValueError):
+
     def __init__(self, line: str = '', tag: str = ''):
         super().__init__(line, tag)
 
@@ -69,17 +75,20 @@ class BadNumberOperator(RowValueError):
 
 
 class BadNumber(RowValueError):
+
     def __init__(self, line: str = '', tag: str = ''):
         super().__init__(line, tag)
 
     def __str__(self):
         super_message = super().__str__()
         reason = "你可能提供的似乎并不是一个数字"
-        message = (f"{super_message}" f"{colored(reason, 'red')}\n")
+        message = (f"{super_message}"
+                   f"{colored(reason, 'red')}\n")
         return message
 
 
 class BadSeparator(RowValueError):
+
     def __init__(self, line: str = '', tag: str = ''):
         super().__init__(line, tag)
 
@@ -94,17 +103,20 @@ class BadSeparator(RowValueError):
 
 
 class RedundantMainEntryType(RowValueError):
+
     def __init__(self, line: str = '', tag: str = ''):
         super().__init__(line, tag)
 
     def __str__(self):
         super_message = super().__str__()
         reason = "主词条只能配置一个条件哦~"
-        message = (f"{super_message}" f"{colored(reason, 'red')}\n")
+        message = (f"{super_message}"
+                   f"{colored(reason, 'red')}\n")
         return message
 
 
 class BadEntryOperator(RowValueError):
+
     def __init__(
         self,
         pos_op: str,
@@ -129,6 +141,7 @@ class BadEntryOperator(RowValueError):
 
 
 class BadEntryType(RowValueError):
+
     def __init__(self, entry_type: str, line: str = '', tag: str = ''):
         super().__init__(line, tag)
         self.entry_type = entry_type
@@ -145,6 +158,7 @@ class BadEntryType(RowValueError):
 
 
 class BadConclusion(RowValueError):
+
     def __init__(self, conclusion: str, line: str = '', tag: str = ''):
         super().__init__(line, tag)
         self.conclusion = conclusion
