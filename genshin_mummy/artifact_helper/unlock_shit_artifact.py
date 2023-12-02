@@ -297,8 +297,9 @@ def main():
     system = platform.system()
     is_admin = False
 
-    if system == 'Windows' and ctypes.windll.shell32.IsUserAnAdmin():
-        is_admin = True
+    if system == 'Windows':
+        if ctypes.windll.shell32.IsUserAnAdmin():
+            is_admin = True
     else:
         is_admin = os.getuid() == 0
 
