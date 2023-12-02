@@ -32,3 +32,7 @@ dev = [
 
 [project.scripts]
 fuck-shit-artifact = "genshin_mummy.artifact_helper.unlock_shit_artifact:main"
+
+[project.urls]
+Homepage = "https://github.com/Tpinion/GenshinMummy"
+Issues = "https://github.com/Tpinion/GenshinMummy/issues"
