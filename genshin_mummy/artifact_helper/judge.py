@@ -451,8 +451,8 @@ class ArtifactJudge:
     def default_strategy(self, artifact):
         self.logger.info("开始执行默认策略...")
         # 算法参考
-        # https://www.bilibili.com/video/BV1sZ4y1e7h8/?spm_id_from=333.1007.top_right_bar_window_history.content.click
-        # https://www.bilibili.com/video/BV1mB4y177a6/?spm_id_from=333.1007.top_right_bar_window_history.content.click
+        # https://www.bilibili.com/video/BV1sZ4y1e7h8
+        # https://www.bilibili.com/video/BV1mB4y177a6
 
         # 等级大于0=>锁
         if artifact.level > 0:
