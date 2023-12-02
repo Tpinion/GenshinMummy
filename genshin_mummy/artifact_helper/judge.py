@@ -214,6 +214,7 @@ class StrategyFactory:
                 raise BadExcelHeader
 
     def check_sep(self, value: str):
+
         def is_chinese(char: str):
             return '\u4e00' <= char <= '\u9fff'
 
@@ -408,6 +409,7 @@ class StrategyFactory:
 
 
 class ArtifactJudge:
+
     def __init__(
         self,
         config_fp: Optional[str] = None,
