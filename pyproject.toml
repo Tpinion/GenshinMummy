@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "genshin-mummy"
-version = "0.0.1"
+version = "1.0.0"
 authors = [{ name = "LetianLiu", email = "15261172997@163.com" }]
 description = "A tech-neet's RPA project for Genshin Impact."
 readme = "README.md"
