@@ -218,7 +218,10 @@ class ArtifactPage:
                     aim_y=loc.center_y + self.y_offset,
                 )
                 self.logger.info(f'当前圣遗物：{str(loc.to_tuple())}')
-                self.logger.info(f'下一行：{str(row_head_loc.to_tuple())}')
+                if row_head_loc:
+                    self.logger.info(f'下一行：{str(row_head_loc.to_tuple())}')
+                else:
+                    self.logger.warning('未能正确定位出下一行圣遗物。')
             else:
                 row_head_loc = None
 
@@ -336,6 +339,7 @@ class ArtifactPage:
         selected_loc = self.locate_selected_artifact()
         if selected_loc.contain(aim_point):
             return selected_loc
+        self.logger.warning(f"目标点{aim_point} 不在 {selected_loc.to_tuple()}中！")
         return None
 
     def locate_next_artifact(
