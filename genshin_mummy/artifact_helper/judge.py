@@ -150,7 +150,7 @@ class Strategy:
                 artifact.level):
             return False
         if self.star_condition and not self.star_condition.judge(
-                artifact.star):
+                artifact.stars):
             return False
         if self.main_entry_condition and not self.main_entry_condition.judge(
                 artifact):
