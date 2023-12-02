@@ -175,9 +175,9 @@ def locate_lock_icon(
     # TODO: 经验值有效但不太保险
     THRESH = 30
     if np.mean(channel_red_roi) - np.mean(roi[:, :, 1:]) > THRESH:
-        lock_status = Conclusion.LOCK
-    else:
         lock_status = Conclusion.UNLOCK
+    else:
+        lock_status = Conclusion.LOCK
     center_point = Point(
         x=roi_left + roi_width // 2,
         y=roi_top + roi_height // 2,
@@ -255,12 +255,15 @@ def run_pipeline(max_num: int, app_fd: str):
                 desc_loc_mask=artifact_page.desc_loc_mask.copy(),
             )
 
+            logger.info(f'当前圣遗物状态为{lock_status}，期望为{expect_status}')
             if lock_status != expect_status:
+                logger.info(f'前往坐标x={icon_center.x}，y={icon_center.y}')
                 pyautogui.leftClick(
                     icon_center.x,
                     icon_center.y,
                     duration=artifact_page.mouse_move_time,
                 )
+            time.sleep(2)
 
             artifact_page.move_to_artifact_list()
     except Exception as error:
